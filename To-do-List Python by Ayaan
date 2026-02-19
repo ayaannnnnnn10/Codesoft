@@ -1,0 +1,84 @@
+import json
+import os
+import tkinter as tk
+from tkinter import messagebox
+
+FILE_NAME = "tasks.json"
+
+# --- Logic Functions ---
+
+def load_tasks():
+    if os.path.exists(FILE_NAME):
+        with open(FILE_NAME, "r") as file:
+            return json.load(file)
+    return []
+
+def save_tasks(tasks):
+    with open(FILE_NAME, "w") as file:
+        json.dump(tasks, file, indent=4)
+
+# --- GUI Application ---
+
+class TodoApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Python To-Do List by Ayaan")
+        self.tasks = load_tasks()
+
+        # UI Elements
+        self.task_entry = tk.Entry(root, width=30)
+        self.task_entry.pack(pady=10)
+
+        self.add_button = tk.Button(root, text="Add Task", command=self.add_task)
+        self.add_button.pack()
+
+        self.task_listbox = tk.Listbox(root, width=50, height=10)
+        self.task_listbox.pack(pady=10)
+
+        self.delete_button = tk.Button(root, text="Delete Task", command=self.delete_task)
+        self.delete_button.pack(side="left", padx=20, pady=10)
+
+        self.complete_button = tk.Button(root, text="Mark Completed", command=self.mark_done)
+        self.complete_button.pack(side="right", padx=20, pady=10)
+
+        self.refresh_listbox()
+
+    def refresh_listbox(self):
+        """Clears and re-populates the listbox from self.tasks."""
+        self.task_listbox.delete(0, tk.END)
+        for task in self.tasks:
+            status = "✔" if task["completed"] else " "
+            self.task_listbox.insert(tk.END, f"[{status}] {task['title']}")
+
+    def add_task(self):
+        title = self.task_entry.get().strip()
+        if title:
+            self.tasks.append({"title": title, "completed": False, "priority": "Medium"})
+            save_tasks(self.tasks)
+            self.refresh_listbox()
+            self.task_entry.delete(0, tk.END)
+        else:
+            messagebox.showwarning("Warning", "Title cannot be empty!")
+
+    def delete_task(self):
+        try:
+            index = self.task_listbox.curselection()[0]
+            del self.tasks[index]
+            save_tasks(self.tasks)
+            self.refresh_listbox()
+        except IndexError:
+            messagebox.showwarning("Warning", "Please select a task to delete.")
+
+    def mark_done(self):
+        try:
+            index = self.task_listbox.curselection()[0]
+            self.tasks[index]["completed"] = True
+            save_tasks(self.tasks)
+            self.refresh_listbox()
+        except IndexError:
+            messagebox.showwarning("Warning", "Please select a task.")
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = TodoApp(root)
+    root.mainloop()
