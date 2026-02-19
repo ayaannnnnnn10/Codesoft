@@ -1,0 +1,111 @@
+import json
+import os
+import tkinter as tk
+from tkinter import messagebox
+
+FILE_NAME = "contacts.json"
+
+
+def load_contacts():
+    if os.path.exists(FILE_NAME):
+        with open(FILE_NAME, "r") as file:
+            return json.load(file)
+    return []
+
+def save_contacts(contacts):
+    with open(FILE_NAME, "w") as file:
+        json.dump(contacts, file, indent=4)
+
+
+class ContactApp:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Contact Manager")
+        self.root.geometry("500x400")
+        self.contacts = load_contacts()
+
+        
+        self.left_frame = tk.Frame(root)
+        self.left_frame.pack(side="left", padx=10, pady=10, fill="both", expand=True)
+
+        tk.Label(self.left_frame, text="Search:").pack(anchor="w")
+        self.search_var = tk.StringVar()
+        self.search_var.trace("w", lambda *args: self.refresh_list())
+        tk.Entry(self.left_frame, textvariable=self.search_var).pack(fill="x", pady=5)
+
+        self.listbox = tk.Listbox(self.left_frame)
+        self.listbox.pack(fill="both", expand=True)
+        self.listbox.bind("<<ListboxSelect>>", self.load_selected_contact)
+
+        
+        self.right_frame = tk.Frame(root)
+        self.right_frame.pack(side="right", padx=10, pady=10)
+
+        self.fields = ["Name", "Phone", "Email", "Address"]
+        self.entries = {}
+
+        for field in self.fields:
+            tk.Label(self.right_frame, text=field).pack(anchor="w")
+            entry = tk.Entry(self.right_frame, width=30)
+            entry.pack(pady=2)
+            self.entries[field] = entry
+
+    
+        btn_frame = tk.Frame(self.right_frame)
+        btn_frame.pack(pady=10)
+        tk.Button(btn_frame, text="Add", command=self.add_contact, width=7).grid(row=0, column=0, padx=2)
+        tk.Button(btn_frame, text="Update", command=self.update_contact, width=7).grid(row=0, column=1, padx=2)
+        tk.Button(btn_frame, text="Delete", command=self.delete_contact, width=7).grid(row=0, column=2, padx=2)
+
+        self.refresh_list()
+
+    def refresh_list(self):
+        search_term = self.search_var.get().lower()
+        self.listbox.delete(0, tk.END)
+        self.filtered_contacts = [c for c in self.contacts if search_term in c['name'].lower() or search_term in c['phone']]
+        for contact in self.filtered_contacts:
+            self.listbox.insert(tk.END, contact['name'])
+
+    def load_selected_contact(self, event):
+        selection = self.listbox.curselection()
+        if selection:
+            contact = self.filtered_contacts[selection[0]]
+            for field in self.fields:
+                self.entries[field].delete(0, tk.END)
+                self.entries[field].insert(0, contact[field.lower()])
+
+    def get_form_data(self):
+        return {f.lower(): self.entries[f].get().strip() for f in self.fields}
+
+    def add_contact(self):
+        data = self.get_form_data()
+        if data['name'] and data['phone']:
+            self.contacts.append(data)
+            save_contacts(self.contacts)
+            self.refresh_list()
+        else:
+            messagebox.showwarning("Error", "Name and Phone are required")
+
+    def update_contact(self):
+        selection = self.listbox.curselection()
+        if selection:
+            index_in_main = self.contacts.index(self.filtered_contacts[selection[0]])
+            self.contacts[index_in_main] = self.get_form_data()
+            save_contacts(self.contacts)
+            self.refresh_list()
+        else:
+            messagebox.showwarning("Error", "Select a contact to update")
+
+    def delete_contact(self):
+        selection = self.listbox.curselection()
+        if selection:
+            index_in_main = self.contacts.index(self.filtered_contacts[selection[0]])
+            del self.contacts[index_in_main]
+            save_contacts(self.contacts)
+            self.refresh_list()
+            for entry in self.entries.values(): entry.delete(0, tk.END)
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = ContactApp(root)
+    root.mainloop()
